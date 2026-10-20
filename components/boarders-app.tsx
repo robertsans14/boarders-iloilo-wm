@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { ArrowRight, Bath, BedDouble, CalendarDays, CheckCircle2, ChevronDown, Clock3, Coffee, House, Info, MapPin, Search, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users, Wifi, X } from 'lucide-react'
+import { BoardersFooter } from './boarders-footer'
 
 type RoomType = 'Solo' | 'Shared'
 type Policy = 'Male-only' | 'Female-only' | 'Co-ed'
@@ -96,7 +97,7 @@ export function BoardersApp({ view = 'home' }: { view?: 'home' | 'explore' | 'us
 
     {view === 'user' && <section className="mx-auto max-w-3xl px-5 py-12 lg:px-8 lg:py-16"><p className="text-sm font-bold uppercase tracking-[.18em] text-amber-600">Student area</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-[#102b4e]">Your profile</h1><p className="mt-2 text-slate-500">A simple place to keep your housing details ready.</p><div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><div className="flex items-center gap-4"><div className="grid size-14 place-items-center rounded-2xl bg-amber-100 text-[#102b4e]"><UserRound /></div><div><h2 className="text-xl font-bold text-[#102b4e]">Student profile</h2><p className="text-sm text-slate-500">Frontend prototype — no account is connected.</p></div></div><div className="mt-8 grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-[#102b4e]">Full name<input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100" placeholder="Your name" /></label><label className="text-sm font-bold text-[#102b4e]">School or student ID<input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100" placeholder="Your school" /></label></div></div><div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-[#102b4e]">Viewing requests</h2><p className="mt-2 text-sm text-slate-500">Submitted requests will appear here when account persistence is connected.</p></div></section>}
 
-    <footer className="bg-[#102b4e] px-5 py-10 text-blue-100"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-5 sm:flex-row sm:items-center lg:px-3"><div><p className="font-bold text-white">Boarders <span className="text-amber-300">Iloilo</span></p><p className="mt-1 text-sm">Your place in the city.</p></div><p className="text-xs text-blue-200/70">Student housing in Iloilo City</p></div></footer>
+    <BoardersFooter />
 
     {selected && <PropertyDialog property={selected} onClose={() => { setSelected(null); setRequestOpen(false); setSubmitted(false) }} onRequest={() => setRequestOpen(true)} />}
     {selected && requestOpen && <RequestDialog property={selected} form={form} update={update} errors={errors} mode={mode} setMode={setMode} payment={payment} setPayment={setPayment} onClose={() => setRequestOpen(false)} onSubmit={submitRequest} submitted={submitted} onDone={() => { setRequestOpen(false); setSelected(null); setSubmitted(false) }} />}
