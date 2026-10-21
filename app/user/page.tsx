@@ -1,6 +1,5 @@
-import { Suspense } from 'react'
-import { BoardersApp } from '@/components/boarders-app'
+import { redirect } from 'next/navigation'
 
 export default function UserPage() {
-  return <Suspense><BoardersApp view="user" /></Suspense>
+  redirect('/profile')
 }
