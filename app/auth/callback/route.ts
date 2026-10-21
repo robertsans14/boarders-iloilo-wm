@@ -7,11 +7,11 @@ export async function GET(request: Request) {
   const requestedNext = url.searchParams.get('next') || '/profile'
   const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/profile'
 
-  if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) return NextResponse.redirect(new URL('/profile?auth=error', url.origin))
-  }
+  if (!code) return NextResponse.redirect(new URL('/profile?auth=error', url.origin))
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  if (error) return NextResponse.redirect(new URL('/profile?auth=error', url.origin))
 
   return NextResponse.redirect(new URL(next, url.origin))
 }
