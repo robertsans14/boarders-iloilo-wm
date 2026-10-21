@@ -1,6 +1,5 @@
-import { Suspense } from 'react'
-import { BoardersApp } from '@/components/boarders-app'
+import { redirect } from 'next/navigation'
 
 export default function ExplorePage() {
-  return <Suspense><BoardersApp view="explore" /></Suspense>
+  redirect('/nearby-rentals')
 }

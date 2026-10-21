@@ -1,6 +1,8 @@
-import { Suspense } from 'react'
-import { BoardersApp } from '@/components/boarders-app'
+import { redirect } from 'next/navigation'
 
-export default function SearchPage() {
-  return <Suspense><BoardersApp view="explore" /></Suspense>
+export default async function SearchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) if (typeof value === 'string') query.set(key, value)
+  redirect(`/nearby-rentals${query.toString() ? `?${query.toString()}` : ''}`)
 }
