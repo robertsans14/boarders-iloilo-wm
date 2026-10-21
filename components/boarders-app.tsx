@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowRight, Bath, BedDouble, BookOpenCheck, CalendarDays, CheckCircle2, ChevronDown, Clock3, Coffee, House, Info, MapPin, Search, ShieldCheck, SlidersHorizontal, Sparkles, UserRound, Users, Wifi, X } from 'lucide-react'
 import { AuthPanel } from './auth-panel'
 import { BoardersFooter } from './boarders-footer'
+import { createClient } from '@/lib/supabase/client'
 
 type RoomType = 'Solo' | 'Shared'
 type Policy = 'Male-only' | 'Female-only' | 'Co-ed'
@@ -62,6 +63,15 @@ export function BoardersApp({ view = 'home' }: { view?: 'home' | 'explore' | 'us
   const [payment, setPayment] = useState<PaymentMethod>('GCash')
   const [form, setForm] = useState({ name: '', mobile: '', email: '', school: '', date: '', time: '', notes: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
+  const [authNotice, setAuthNotice] = useState('')
+  const supabase = useMemo(() => createClient(), [])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAuthUserId(data.user?.id ?? null))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setAuthUserId(session?.user?.id ?? null))
+    return () => listener.subscription.unsubscribe()
+  }, [supabase])
 
   const results = useMemo(() => properties.filter((property) => {
     const universityMatch = university === 'All universities' || property.university === university
@@ -70,7 +80,7 @@ export function BoardersApp({ view = 'home' }: { view?: 'home' | 'explore' | 'us
   }), [university, budget, roomType, policy, curfew])
 
   function update(field: string, value: string) { setForm((current) => ({ ...current, [field]: value })); if (errors[field]) setErrors((current) => ({ ...current, [field]: '' })) }
-  function submitRequest(event: React.FormEvent) {
+  async function submitRequest(event: React.FormEvent) {
     event.preventDefault()
     const next: Record<string, string> = {}
     if (!form.name.trim()) next.name = 'Please enter your full name.'
@@ -80,7 +90,32 @@ export function BoardersApp({ view = 'home' }: { view?: 'home' | 'explore' | 'us
     if (!form.date) next.date = 'Choose a preferred date.'
     if (!form.time) next.time = 'Choose a preferred time.'
     setErrors(next)
-    if (!Object.keys(next).length) setSubmitted(true)
+    if (Object.keys(next).length || !selected) return
+    if (!authUserId) {
+      setAuthNotice('Please log in from the User page before submitting a viewing request.')
+      setRequestOpen(false)
+      return
+    }
+    const { error } = await supabase.from('viewing_requests').insert({
+      student_id: authUserId,
+      property_id: selected.id,
+      full_name: form.name.trim(),
+      mobile: form.mobile.replace(/\s|-/g, ''),
+      email: form.email.trim(),
+      school_or_student_id: form.school.trim(),
+      preferred_date: form.date,
+      preferred_time: form.time,
+      notes: form.notes.trim() || null,
+      viewing_mode: mode,
+      payment_method: payment,
+      fee: viewingFees[mode],
+    })
+    if (error) {
+      setAuthNotice('We could not save your request. Please try again.')
+      return
+    }
+    setAuthNotice('Viewing request submitted. Track its status from your User page.')
+    setSubmitted(true)
   }
 
   return <main className="min-h-screen min-w-0 bg-[#f7f8fa] pb-[calc(4rem+env(safe-area-inset-bottom))] text-[#11243d] md:pb-0">
@@ -92,6 +127,7 @@ export function BoardersApp({ view = 'home' }: { view?: 'home' | 'explore' | 'us
         
       </div>
     </header>
+    {authNotice && <div role="status" className="mx-auto mt-4 max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-[#102b4e] sm:mx-6 lg:mx-auto lg:px-8">{authNotice}</div>}
     <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(16,43,78,0.08)] backdrop-blur md:hidden">{navItems.map((item) => <a key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined} className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-bold transition ${pathname === item.href ? 'text-[#102b4e]' : 'text-slate-500 hover:text-[#102b4e]'}`}>{item.icon}<span>{item.label}</span></a>)}</nav>
 
     {view === 'home' && <section id="top" className="relative overflow-hidden bg-[#102b4e] text-white"><div className="absolute -right-20 -top-32 size-96 rounded-full bg-amber-400/10 blur-3xl" /><div className="mx-auto grid min-w-0 max-w-7xl gap-10 px-4 pb-22 pt-12 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-22"><div className="relative z-10"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-200"><Sparkles className="size-3.5" /> Made for student life in Iloilo</div><h1 className="max-w-2xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">A place that feels like <span className="text-amber-300">home.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-blue-100 sm:text-lg">Explore student-housing listings in Iloilo, compare the details that matter, and find a room that fits your campus routine.</p><HomeSearch university={university} budget={budget} setUniversity={setUniversity} setBudget={setBudget} onSubmit={() => router.push(`/search?${new URLSearchParams({ ...(university !== 'All universities' ? { university } : {}), ...(budget !== 'Any budget' ? { budget } : {}) }).toString()}`)} /><div className="mt-10 flex flex-wrap gap-6 text-sm text-blue-100"><span className="flex items-center gap-2"><ShieldCheck className="size-4 text-amber-300" />Student-friendly homes</span><span className="flex items-center gap-2"><MapPin className="size-4 text-amber-300" />Near your campus</span></div></div><div className="relative hidden lg:block"><div className="absolute -right-6 -top-6 h-80 w-80 rounded-full border border-amber-300/20" /><div className="relative ml-auto max-w-md rotate-2 overflow-hidden rounded-[2rem] border-8 border-white/10 shadow-2xl"><img src="/room-modern.png" alt="Bright modern student room" className="aspect-[4/3] w-full object-cover" /><div className="absolute bottom-4 left-4 right-4 rounded-2xl bg-white/95 p-4 text-[#102b4e] shadow-lg"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Featured near UI</p><div className="mt-1 flex items-center justify-between"><p className="font-bold">Amber Residences</p><p className="font-bold text-amber-600">₱6,500<span className="text-xs font-normal text-slate-500"> / mo</span></p></div></div></div></div></div></section>}
