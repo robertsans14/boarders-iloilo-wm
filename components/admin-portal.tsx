@@ -57,7 +57,11 @@ export function AdminPortal() {
     setLoading(false)
   }
 
-  useEffect(() => { void load() }, [supabase])
+  useEffect(() => {
+    void load()
+    const channel = supabase.channel('admin-live-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'viewing_requests' }, () => { void load() }).on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, () => { void load() }).on('postgres_changes', { event: '*', schema: 'public', table: 'student_guide_applications' }, () => { void load() }).on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => { void load() }).subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [supabase])
 
   const visibleRequests = requestView === 'pending' ? requests : requestHistory
   const filteredRequests = visibleRequests.filter((item) => `${item.full_name} ${item.email} ${item.property_id} ${item.status}`.toLowerCase().includes(query.toLowerCase()))
