@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'requests' | 'reviews' | 'complaints' | 'guides' | 'schedule'
 type RequestRow = { id: string; full_name: string; email: string; mobile: string; property_id: string; preferred_date: string; preferred_time: string; viewing_mode: string; fee: number; status: string; notes: string | null; payment_method: string }
+type PropertyContact = { id: string; title: string; details: Record<string, unknown> | null }
 type ComplaintRow = { id: string; property_id: string | null; category: string; description: string; status: string; created_at: string; student_id: string }
 type GuideRow = { id: string; full_name: string; email: string; school: string; service_area: string; availability: string; status: string; created_at: string }
 
@@ -23,6 +24,7 @@ export function AdminPortal() {
   const [tab, setTab] = useState<Tab>('requests')
   const [query, setQuery] = useState('')
   const [requests, setRequests] = useState<RequestRow[]>([])
+  const [propertyContacts, setPropertyContacts] = useState<Record<string, PropertyContact>>({})
   const [complaints, setComplaints] = useState<ComplaintRow[]>([])
   const [guides, setGuides] = useState<GuideRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,13 +38,15 @@ export function AdminPortal() {
     const { data: admin } = await supabase.rpc('is_admin')
     setIsAdmin(Boolean(admin))
     if (!admin) { setLoading(false); return }
-    const [requestsResult, complaintsResult, guidesResult] = await Promise.all([
+    const [requestsResult, propertiesResult, complaintsResult, guidesResult] = await Promise.all([
       supabase.from('viewing_requests').select('id, full_name, email, mobile, property_id, preferred_date, preferred_time, viewing_mode, fee, status, notes, payment_method').order('created_at', { ascending: false }),
+      supabase.from('properties').select('id, title, details'),
       supabase.from('complaints').select('id, property_id, category, description, status, created_at, student_id').order('created_at', { ascending: false }),
       supabase.from('student_guide_applications').select('id, full_name, email, school, service_area, availability, status, created_at').order('created_at', { ascending: false }),
     ])
-    if (requestsResult.error || complaintsResult.error || guidesResult.error) setError('Some admin records could not be loaded.')
+    if (requestsResult.error || propertiesResult.error || complaintsResult.error || guidesResult.error) setError('Some admin records could not be loaded.')
     setRequests((requestsResult.data ?? []) as RequestRow[])
+    setPropertyContacts(Object.fromEntries(((propertiesResult.data ?? []) as PropertyContact[]).map((property) => [property.id, property])))
     setComplaints((complaintsResult.data ?? []) as ComplaintRow[])
     setGuides((guidesResult.data ?? []) as GuideRow[])
     setLoading(false)
