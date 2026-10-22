@@ -13,7 +13,8 @@ type UserProfile = { id: string; full_name: string | null; university: string | 
 type Mode = 'signup' | 'login'
 type Tab = 'overview' | 'messages' | 'reviews' | 'reports' | 'payments' | 'guide' | 'profile'
 type GuideApplication = { id: string; full_name: string; mobile: string; email: string; school: string; service_area: string; availability: string; communication_preference: string; experience: string; motivation: string; reliability_answer: string; local_knowledge_answer: string; policy_answer: string; status: string; created_at: string; eligible_to_reapply_at: string | null }
-type Request = { id: string; property_id: string; preferred_date: string; preferred_time: string; viewing_mode: string; fee: number; status: string; payment_method: string; full_name: string }
+type Request = { id: string; property_id: string; preferred_date: string; preferred_time: string; viewing_mode: string; fee: number; status: string; payment_method: string; full_name: string; decided_at?: string | null }
+type Notification = { id: string; title: string; body: string; kind: string; read_at: string | null; created_at: string }
 type Message = { id: string; request_id: string; body: string; created_at: string; sender_id: string }
 type Review = { id: string; property_id: string; rating: number; body: string | null; created_at: string }
 type Complaint = { id: string; property_id: string | null; category: string; description: string; status: string; created_at: string }
@@ -36,6 +37,7 @@ export function AuthPanel() {
   const [profileName, setProfileName] = useState('')
   const [profileUniversity, setProfileUniversity] = useState<string>(UNIVERSITY_DEFAULT)
   const [requests, setRequests] = useState<Request[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [complaints, setComplaints] = useState<Complaint[]>([])
@@ -74,8 +76,9 @@ export function AuthPanel() {
 
   async function loadData(userId: string) {
     setLoading(true)
-    const [requestsResult, messagesResult, reviewsResult, complaintsResult, paymentsResult, guideResult] = await Promise.all([
-      supabase.from('viewing_requests').select('id, property_id, preferred_date, preferred_time, viewing_mode, fee, status, payment_method, full_name').order('created_at', { ascending: false }),
+    const [requestsResult, notificationsResult, messagesResult, reviewsResult, complaintsResult, paymentsResult, guideResult] = await Promise.all([
+      supabase.from('viewing_requests').select('id, property_id, preferred_date, preferred_time, viewing_mode, fee, status, payment_method, full_name, decided_at').order('created_at', { ascending: false }),
+      supabase.from('notifications').select('id, title, body, kind, read_at, created_at').order('created_at', { ascending: false }).limit(20),
       supabase.from('messages').select('id, request_id, body, created_at, sender_id').order('created_at', { ascending: true }),
       supabase.from('reviews').select('id, property_id, rating, body, created_at').order('created_at', { ascending: false }),
       supabase.from('complaints').select('id, property_id, category, description, status, created_at').order('created_at', { ascending: false }),
@@ -83,7 +86,7 @@ export function AuthPanel() {
       supabase.from('student_guide_applications').select('id, full_name, mobile, email, school, service_area, availability, communication_preference, experience, motivation, reliability_answer, local_knowledge_answer, policy_answer, status, created_at, eligible_to_reapply_at').order('created_at', { ascending: false }).limit(1),
     ])
     setGuideApplication((guideResult.data?.[0] ?? null) as GuideApplication | null)
-    setRequests((requestsResult.data ?? []) as Request[]); setMessages((messagesResult.data ?? []) as Message[]); setReviews((reviewsResult.data ?? []) as Review[]); setComplaints((complaintsResult.data ?? []) as Complaint[]); setPayments((paymentsResult.data ?? []) as Payment[])
+    setRequests((requestsResult.data ?? []) as Request[]); setNotifications((notificationsResult.data ?? []) as Notification[]); setMessages((messagesResult.data ?? []) as Message[]); setReviews((reviewsResult.data ?? []) as Review[]); setComplaints((complaintsResult.data ?? []) as Complaint[]); setPayments((paymentsResult.data ?? []) as Payment[])
     setSelectedRequest((requestsResult.data?.[0] as Request | undefined)?.id ?? '')
     setLoading(false)
     void userId
@@ -92,7 +95,7 @@ export function AuthPanel() {
   useEffect(() => {
     let mounted = true
     supabase.auth.getUser().then(({ data }) => { if (mounted) { setUserEmail(data.user?.email ?? null); if (data.user) { void loadProfile(data.user.id); void loadData(data.user.id) } else { setLoading(false) } } })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setUserEmail(session?.user?.email ?? null); if (session) { void loadProfile(session.user.id); void loadData(session.user.id) } else { setProfile(null); setProfileName(''); setProfileUniversity(UNIVERSITY_DEFAULT); setRequests([]); setMessages([]); setReviews([]); setComplaints([]); setPayments([]) } })
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setUserEmail(session?.user?.email ?? null); if (session) { void loadProfile(session.user.id); void loadData(session.user.id) } else { setProfile(null); setProfileName(''); setProfileUniversity(UNIVERSITY_DEFAULT); setRequests([]); setNotifications([]); setMessages([]); setComplaints([]); setPayments([]) } })
     return () => { mounted = false; listener.subscription.unsubscribe() }
   }, [supabase])
 
