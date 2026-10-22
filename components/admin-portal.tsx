@@ -5,7 +5,7 @@ import { AlertTriangle, CalendarClock, Check, Clipboard, FileCheck2, LogIn, Mess
 import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'requests' | 'reviews' | 'complaints' | 'guides' | 'schedule'
-type RequestRow = { id: string; full_name: string; email: string; mobile: string; property_id: string; preferred_date: string; preferred_time: string; viewing_mode: string; fee: number; status: string; notes: string | null; payment_method: string; decided_at?: string | null; decided_by?: string | null }
+type RequestRow = { id: string; full_name: string; email: string; mobile: string; property_id: string; preferred_date: string; preferred_time: string; viewing_mode: string; fee: number; status: string; notes: string | null; payment_method: string; decided_at?: string | null; decided_by?: string | null; decided_by_email?: string | null; cancellation_reason?: string | null }
 type PropertyContact = { id: string; title: string; details: Record<string, unknown> | null }
 type ComplaintRow = { id: string; property_id: string | null; category: string; description: string; status: string; created_at: string; student_id: string }
 type GuideRow = { id: string; full_name: string; email: string; school: string; service_area: string; availability: string; status: string; created_at: string }
@@ -42,8 +42,8 @@ export function AdminPortal() {
     setIsAdmin(Boolean(admin))
     if (!admin) { setLoading(false); return }
     const [requestsResult, historyResult, propertiesResult, complaintsResult, guidesResult] = await Promise.all([
-      supabase.from('viewing_requests').select('id, full_name, email, mobile, property_id, preferred_date, preferred_time, viewing_mode, fee, status, notes, payment_method, decided_at, decided_by').in('status', ['Pending', 'Pending Admin Review', 'pending']).order('created_at', { ascending: false }),
-      supabase.from('viewing_requests').select('id, full_name, email, mobile, property_id, preferred_date, preferred_time, viewing_mode, fee, status, notes, payment_method, decided_at, decided_by').in('status', ['Approved', 'Rejected', 'approved', 'rejected']).order('decided_at', { ascending: false }).limit(20),
+      supabase.from('viewing_requests').select('id, full_name, email, mobile, property_id, preferred_date, preferred_time, viewing_mode, fee, status, notes, payment_method, decided_at, decided_by, decided_by_email, cancellation_reason').eq('status', 'pending').order('created_at', { ascending: false }),
+      supabase.from('viewing_requests').select('id, full_name, email, mobile, property_id, preferred_date, preferred_time, viewing_mode, fee, status, notes, payment_method, decided_at, decided_by, decided_by_email, cancellation_reason').in('status', ['Approved', 'Rejected', 'approved', 'rejected']).order('decided_at', { ascending: false }).limit(20),
       supabase.from('properties').select('id, title, details'),
       supabase.from('complaints').select('id, property_id, category, description, status, created_at, student_id').order('created_at', { ascending: false }),
       supabase.from('student_guide_applications').select('id, full_name, email, school, service_area, availability, status, created_at').order('created_at', { ascending: false }),
@@ -69,7 +69,7 @@ export function AdminPortal() {
   const visibleGuides = workflowView === 'active' ? guides.filter((item) => !['Approved', 'Rejected', 'Declined'].includes(item.status)) : guides.filter((item) => ['Approved', 'Rejected', 'Declined'].includes(item.status))
   const filteredComplaints = visibleComplaints.filter((item) => `${item.category} ${item.property_id ?? ''} ${item.status} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
   const filteredGuides = visibleGuides.filter((item) => `${item.full_name} ${item.email} ${item.school} ${item.status}`.toLowerCase().includes(query.toLowerCase()))
-  const pendingRequests = requests.filter((item) => item.status === 'Pending' || item.status === 'Pending Admin Review').length
+  const pendingRequests = requests.filter((item) => item.status.toLowerCase() === 'pending').length
   const pendingGuides = guides.filter((item) => item.status === 'Pending Review').length
   const openComplaints = complaints.filter((item) => !['Resolved', 'Rejected'].includes(item.status)).length
 
@@ -84,6 +84,19 @@ export function AdminPortal() {
     setRequestHistory((current) => [{ ...(requests.find((item) => item.id === id) as RequestRow), status, decided_at: new Date().toISOString() }, ...current].slice(0, 20))
     setNotice(`Request marked ${status}. The student was notified.`)
     await load()
+  }
+
+  function decisionLabel(item: RequestRow) {
+    const actor = item.decided_by_email ?? item.decided_by ?? 'an administrator'
+    const when = item.decided_at ? new Date(item.decided_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'a previous date'
+    return `${item.status} by ${actor} on ${when}`
+  }
+
+  function statusClass(status: string) {
+    const normalized = status.toLowerCase()
+    if (normalized === 'approved') return 'bg-emerald-100 text-emerald-800'
+    if (normalized === 'rejected') return 'bg-red-100 text-red-800'
+    return 'bg-amber-100 text-amber-800'
   }
 
   function contactFor(item: RequestRow) {
