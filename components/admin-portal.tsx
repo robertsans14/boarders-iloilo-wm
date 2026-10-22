@@ -65,7 +65,8 @@ export function AdminPortal() {
     setError(''); setNotice('')
     const note = status === 'Rejected' ? window.prompt('Optional rejection reason') : null
     if (status === 'Rejected' && note === null) return
-    const { error: updateError } = await supabase.rpc('admin_update_request', { request_id: id, next_status: status, note })
+    const decision = status === 'Approved' ? 'approved' : 'rejected'
+    const { error: updateError } = await supabase.rpc('admin_decide_viewing_request', { request_id: id, decision, note })
     if (updateError) return setError('Request update was not saved.')
     setNotice(`Request marked ${status}. The student was notified.`)
     await load()
