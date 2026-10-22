@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, Check, Clipboard, FileCheck2, LogIn, RefreshCw, Search, ShieldAlert, UserRound, X } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Check, Clipboard, FileCheck2, LogIn, MessageCircle, Phone, RefreshCw, Search, ShieldAlert, UserRound, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'requests' | 'reviews' | 'complaints' | 'guides' | 'schedule'
@@ -69,6 +69,13 @@ export function AdminPortal() {
     if (updateError) return setError('Request update was not saved.')
     setNotice(`Request marked ${status}. The student was notified.`)
     await load()
+  }
+
+  function contactFor(item: RequestRow) {
+    const details = propertyContacts[item.property_id]?.details ?? {}
+    const phone = String(details.phone ?? details.mobile ?? details.contact_number ?? '').trim()
+    const messenger = String(details.messenger_url ?? details.facebook_url ?? details.messenger ?? '').trim()
+    return { phone, messenger }
   }
 
   async function copyRequest(item: RequestRow) {
