@@ -77,11 +77,11 @@ export function AuthPanel() {
   async function loadData(userId: string) {
     setLoading(true)
     const [requestsResult, notificationsResult, messagesResult, reviewsResult, complaintsResult, paymentsResult, guideResult] = await Promise.all([
-      supabase.from('viewing_requests').select('id, property_id, preferred_date, preferred_time, viewing_mode, fee, status, payment_method, full_name, decided_at').order('created_at', { ascending: false }),
-      supabase.from('notifications').select('id, title, body, kind, read_at, created_at').order('created_at', { ascending: false }).limit(20),
-      supabase.from('messages').select('id, request_id, body, created_at, sender_id').order('created_at', { ascending: true }),
-      supabase.from('reviews').select('id, property_id, rating, body, created_at').order('created_at', { ascending: false }),
-      supabase.from('complaints').select('id, property_id, category, description, status, created_at').order('created_at', { ascending: false }),
+      supabase.from('viewing_requests').select('id, property_id, preferred_date, preferred_time, viewing_mode, fee, status, payment_method, full_name, decided_at').eq('student_id', userId).order('created_at', { ascending: false }),
+      supabase.from('notifications').select('id, title, body, kind, read_at, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+      supabase.from('messages').select('id, request_id, body, created_at, sender_id').eq('sender_id', userId).order('created_at', { ascending: true }),
+      supabase.from('reviews').select('id, property_id, rating, body, created_at').eq('student_id', userId).order('created_at', { ascending: false }),
+      supabase.from('complaints').select('id, property_id, category, description, status, created_at').eq('student_id', userId).order('created_at', { ascending: false }),
       supabase.from('payments').select('id, request_id, amount, method, status, transaction_reference').order('created_at', { ascending: false }),
       supabase.from('student_guide_applications').select('id, full_name, mobile, email, school, service_area, availability, communication_preference, experience, motivation, reliability_answer, local_knowledge_answer, policy_answer, status, created_at, eligible_to_reapply_at').order('created_at', { ascending: false }).limit(1),
     ])
@@ -96,7 +96,8 @@ export function AuthPanel() {
     let mounted = true
     supabase.auth.getUser().then(({ data }) => { if (mounted) { setUserEmail(data.user?.email ?? null); if (data.user) { void loadProfile(data.user.id); void loadData(data.user.id) } else { setLoading(false) } } })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setUserEmail(session?.user?.email ?? null); if (session) { void loadProfile(session.user.id); void loadData(session.user.id) } else { setProfile(null); setProfileName(''); setProfileUniversity(UNIVERSITY_DEFAULT); setRequests([]); setNotifications([]); setMessages([]); setComplaints([]); setPayments([]) } })
-    return () => { mounted = false; listener.subscription.unsubscribe() }
+    const channel = supabase.channel('profile-live-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'viewing_requests' }, async () => { const { data } = await supabase.auth.getUser(); if (data.user) void loadData(data.user.id) }).on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, async () => { const { data } = await supabase.auth.getUser(); if (data.user) void loadData(data.user.id) }).subscribe()
+    return () => { mounted = false; listener.subscription.unsubscribe(); void supabase.removeChannel(channel) }
   }, [supabase])
 
   function clearFeedback() { setError(''); setMessage('') }
